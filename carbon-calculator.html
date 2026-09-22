@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Carbon Calculator</title>
+<meta name="description" content="Carbon Calculator: estimate your yearly CO2 footprint. Karbon izingizni hisoblang.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e9f7ec; --card:#ffffff; --ink:#1b3a2a; --muted:#527a63; --line:#c4e5d0;
+  --accent:#34a96b; --accent-soft:#d5f0de; --mark:#e0685a;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#cdf0d9,var(--bg) 280px) no-repeat,var(--bg);color:var(--ink);font-family:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h1{font-size:1.9rem;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 20px;max-width:56ch}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none}
+.lang button{border:0;background:transparent;color:var(--ink);padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--accent);color:#fff}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+section{background:var(--card);border:2px solid var(--line);border-radius:26px;padding:20px;margin-bottom:18px;box-shadow:0 6px 0 var(--line)}
+h2{font-size:1.15rem;margin:0 0 12px}
+.field{margin-bottom:14px}
+.field label{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:.95rem}
+.field output{color:var(--accent);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
+.total{font-size:3rem;font-weight:800;letter-spacing:-.03em;line-height:1;margin:4px 0}
+.total small{font-size:1rem;font-weight:600;color:var(--muted);letter-spacing:0}
+.verdict{margin:8px 0 18px;color:var(--muted)}
+.scale{position:relative;height:14px;background:var(--accent-soft);border-radius:999px;margin:26px 0 30px}
+.fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:999px;transition:width .35s}
+.tick{position:absolute;top:-6px;width:2px;height:26px;background:var(--mark)}
+.tick span{position:absolute;top:28px;left:50%;transform:translateX(-50%);font-size:.75rem;color:var(--muted);white-space:nowrap}
+.row{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:10px;margin:8px 0;font-size:.9rem}
+.bar{height:10px;background:var(--accent-soft);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .35s}
+.row b{text-align:right;font-variant-numeric:tabular-nums}
+.tablebox{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.note{color:var(--muted);font-size:.85rem;margin:10px 0 0}
+footer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:24px}
+footer a{color:var(--accent);font-weight:600}
+.mascot{display:flex;align-items:center;gap:14px;margin-top:20px;padding:14px;background:var(--accent-soft);border-radius:22px}
+.girl{width:130px;flex:none}
+.girl .bad-only{display:none}
+.girl.bad .bad-only{display:inline}
+.girl.bad .good-only{display:none}
+.bubble{position:relative;background:#fff;padding:12px 14px;border-radius:16px;font-weight:800}
+.bubble::before{content:"";position:absolute;left:-8px;top:50%;margin-top:-8px;border:8px solid transparent;border-left:0;border-right-color:#fff}
+@media (prefers-reduced-motion:no-preference){.girl.bad{animation:shake .5s}}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.fill,.bar i{transition:none}}
+@media (max-width:420px){.row{grid-template-columns:90px 1fr 62px}h1{font-size:1.6rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 data-i="title"></h1>
+      <p class="sub" data-i="sub"></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="uz" aria-pressed="true">UZ</button>
+      <button data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <section>
+    <h2 data-i="inputs"></h2>
+    <div id="fields"></div>
+  </section>
+
+  <section aria-live="polite">
+    <h2 data-i="result"></h2>
+    <div class="total"><span id="total">0</span> <small data-i="unit"></small></div>
+    <p class="verdict" id="verdict"></p>
+    <div class="scale" aria-hidden="true">
+      <div class="fill" id="fill"></div>
+      <div class="tick" id="tickTarget"><span data-i="target"></span></div>
+      <div class="tick" id="tickWorld"><span data-i="world"></span></div>
+    </div>
+    <div id="breakdown"></div>
+    <div class="mascot">
+      <svg id="girl" class="girl" viewBox="0 0 220 250" aria-hidden="true">
+        <path d="M46 110C46 28 174 28 174 110L180 205C150 222 70 222 40 205Z" fill="#2c3e50"/>
+        <path d="M48 250C48 205 74 182 110 182C146 182 172 205 172 250Z" fill="#8fdcb0"/>
+        <path d="M92 184L110 208L128 184Z" fill="#fff"/>
+        <rect x="98" y="150" width="24" height="36" rx="10" fill="#ffe1cf"/>
+        <ellipse cx="110" cy="102" rx="52" ry="55" fill="#ffe1cf"/>
+        <path d="M56 96C50 34 170 34 164 96C152 74 138 66 124 68C120 82 106 76 100 64C92 78 72 80 56 96Z" fill="#2c3e50"/>
+        <circle cx="66" cy="62" r="10" fill="#7ad9a3"/><circle cx="52" cy="74" r="10" fill="#7ad9a3"/><circle cx="60" cy="68" r="5" fill="#34a96b"/>
+        <!-- yaxshi natija: kulib, bosh barmoq -->
+        <g class="good-only">
+          <ellipse cx="88" cy="106" rx="9" ry="12" fill="#2f9e6b"/><ellipse cx="88" cy="108" rx="5" ry="8" fill="#14453a"/>
+          <ellipse cx="132" cy="106" rx="9" ry="12" fill="#2f9e6b"/><ellipse cx="132" cy="108" rx="5" ry="8" fill="#14453a"/>
+          <circle cx="85" cy="101" r="3.5" fill="#fff"/><circle cx="129" cy="101" r="3.5" fill="#fff"/>
+          <path d="M78 90Q88 85 98 89M122 89Q132 85 142 90" stroke="#2c3e50" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="72" cy="124" rx="9" ry="5" fill="#ff9fae" opacity=".6"/><ellipse cx="148" cy="124" rx="9" ry="5" fill="#ff9fae" opacity=".6"/>
+          <path d="M97 127Q110 150 123 127Z" fill="#c2454f"/>
+          <ellipse cx="168" cy="216" rx="15" ry="22" fill="#8fdcb0"/>
+          <rect x="153" y="168" width="30" height="34" rx="12" fill="#ffe1cf"/>
+          <rect x="161" y="138" width="12" height="36" rx="6" fill="#ffe1cf"/>
+          <path d="M155 180H181M155 189H181" stroke="#e8b9a0" stroke-width="2"/>
+          <path d="M194 112l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#ffd166"/>
+        </g>
+        <!-- yomon natija: jahli chiqqan -->
+        <g class="bad-only">
+          <ellipse cx="88" cy="109" rx="9" ry="8" fill="#2f9e6b"/><ellipse cx="88" cy="110" rx="5" ry="5.5" fill="#14453a"/><circle cx="86" cy="107" r="2.2" fill="#fff"/>
+          <ellipse cx="132" cy="109" rx="9" ry="8" fill="#2f9e6b"/><ellipse cx="132" cy="110" rx="5" ry="5.5" fill="#14453a"/><circle cx="130" cy="107" r="2.2" fill="#fff"/>
+          <path d="M74 91L100 101M146 91L120 101" stroke="#2c3e50" stroke-width="5" stroke-linecap="round"/>
+          <ellipse cx="72" cy="124" rx="9" ry="5" fill="#ff6b6b" opacity=".5"/><ellipse cx="148" cy="124" rx="9" ry="5" fill="#ff6b6b" opacity=".5"/>
+          <path d="M99 139Q110 126 121 139" stroke="#b03a48" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M162 34q7 2 7 9M184 34q-7 2-7 9M162 62q7-2 7-9M184 62q-7-2-7-9" stroke="#e0453a" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle cx="48" cy="192" r="13" fill="#ffe1cf"/><circle cx="172" cy="192" r="13" fill="#ffe1cf"/>
+        </g>
+      </svg>
+      <div class="bubble" id="bubble"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-i="method"></h2>
+    <p class="note" style="margin-top:0" data-i="methodText"></p>
+    <div class="tablebox"><table id="factors"></table></div>
+    <p class="note" data-i="sources"></p>
+  </section>
+
+  <footer>
+    <div data-i="footer"></div>
+    <div><span data-i="contact"></span>: <a href="mailto:rmakhammatova@gmail.com">rmakhammatova@gmail.com</a></div>
+  </footer>
+</div>
+
+<script>
+// ---------- 1. Emissiya koeffitsientlari / Emission factors ----------
+// perYear = bir yilda necha marta ko'paytiriladi (haftalik -> 52, oylik -> 12)
+// factor  = 1 birlik uchun kg CO2 (taxminiy qiymatlar; manbalardan tekshiring!)
+const CATEGORIES = [
+  { id:'car',    perYear:52, factor:0.17, min:0, max:500, step:5,  def:50  },
+  { id:'bus',    perYear:52, factor:0.10, min:0, max:500, step:5,  def:30  },
+  { id:'flight', perYear:1,  factor:250,  min:0, max:20,  step:1,  def:1   },
+  { id:'power',  perYear:12, factor:0.45, min:0, max:1000,step:10, def:150 },
+  { id:'gas',    perYear:12, factor:2.0,  min:0, max:400, step:5,  def:60  },
+  { id:'meat',   perYear:52, factor:2.5,  min:0, max:21,  step:1,  def:7   },
+];
+const WORLD_AVG = 4.7;   // tonna/kishi/yil (taxminiy)
+const TARGET    = 2.3;   // 2030 uchun tavsiya etilgan daraja (taxminiy)
+const SCALE_MAX = 8;     // grafik shkalasi (tonna)
+
+// ---------- 2. Matnlar / Texts ----------
+const TEXT = {
+  uz:{
+    title:'Carbon Calculator', sub:"Kundalik odatlaringiz yiliga qancha CO₂ chiqarishini hisoblang.",
+    inputs:"Ma'lumotlarni kiriting", result:'Natija', unit:'tonna CO₂ / yil',
+    method:'Metodologiya',
+    methodText:"Har bir odat uchun yillik emissiya = kiritilgan qiymat × yilga ko'paytirgich × emissiya koeffitsienti. Natijalar yig'iladi va kg dan tonnaga o'giriladi.",
+    sources:"Koeffitsientlar taxminiy va o'rtacha qiymatlarga asoslangan. Manbalar: IPCC, EPA, DEFRA (Buyuk Britaniya) emissiya omillari, IEA elektr tarmog'i ma'lumotlari.",
+    footer:"Ilmiy ish · Muallif: Mahammadjonova Ruhshona", contact:'Biz bilan bog‘lanish',
+    sayGood:"Barakalla! Tabiatga g‘amxo‘rlik qilyapsiz! 👍", sayBad:"Voy-voy! Juda ko‘p CO₂! Odatlaringizni o‘zgartiring!",
+    world:'Dunyo o‘rtachasi', target:'Maqsad',
+    colFactor:'Toifa', colCoef:'Koeffitsient', colUnit:'Birlik',
+    verdictLow:"Ajoyib! Natijangiz maqsad darajasiga yaqin.", verdictMid:"Natijangiz dunyo o'rtachasidan past, lekin maqsaddan yuqori.", verdictHigh:"Natijangiz dunyo o'rtachasidan yuqori. Eng katta ulushni pastdagi grafikdan ko'ring.",
+    car:['Avtomobil','km / hafta','kg CO₂ / km'], bus:['Jamoat transporti','km / hafta','kg CO₂ / km'],
+    flight:['Qisqa reyslar','reys / yil','kg CO₂ / reys'], power:['Elektr','kWh / oy','kg CO₂ / kWh'],
+    gas:['Tabiiy gaz','m³ / oy','kg CO₂ / m³'], meat:['Go‘shtli ovqat','marta / hafta','kg CO₂ / marta']
+  },
+  en:{
+    title:'Carbon Calculator', sub:'Estimate how much CO₂ your daily habits produce each year.',
+    inputs:'Enter your data', result:'Result', unit:'tonnes CO₂ / year',
+    method:'Methodology',
+    methodText:'Yearly emissions for each habit = input value × yearly multiplier × emission factor. The results are summed and converted from kg to tonnes.',
+    sources:'Factors are approximate averages. Sources: IPCC, EPA and DEFRA (UK) emission factors, IEA grid data.',
+    footer:'Research project · Author: Mahammadjonova Ruhshona', contact:'Contact us',
+    sayGood:'Well done! You are taking care of nature! 👍', sayBad:'Oh no! That is a lot of CO₂! Change your habits!',
+    world:'World average', target:'Target',
+    colFactor:'Category', colCoef:'Factor', colUnit:'Unit',
+    verdictLow:'Great! Your result is close to the target level.', verdictMid:'Your result is below the world average but above the target.', verdictHigh:'Your result is above the world average. Check the chart below to see the biggest source.',
+    car:['Car','km / week','kg CO₂ / km'], bus:['Public transport','km / week','kg CO₂ / km'],
+    flight:['Short flights','flights / year','kg CO₂ / flight'], power:['Electricity','kWh / month','kg CO₂ / kWh'],
+    gas:['Natural gas','m³ / month','kg CO₂ / m³'], meat:['Meat meals','meals / week','kg CO₂ / meal']
+  }
+};
+
+let lang = 'uz';
+const values = {};
+CATEGORIES.forEach(c => values[c.id] = c.def);
+
+// ---------- 3. Hisoblash / Calculation ----------
+function calculate(){
+  const parts = CATEGORIES.map(c => ({ id:c.id, kg: values[c.id] * c.perYear * c.factor }));
+  const totalKg = parts.reduce((s,p) => s + p.kg, 0);
+  return { parts, tonnes: totalKg / 1000 };
+}
+
+// ---------- 4. Ekranga chiqarish / Rendering ----------
+function buildFields(){
+  const box = document.getElementById('fields');
+  box.innerHTML = '';
+  CATEGORIES.forEach(c => {
+    const t = TEXT[lang][c.id];
+    const d = document.createElement('div');
+    d.className = 'field';
+    d.innerHTML = `<label for="in-${c.id}"><span>${t[0]}</span><span><output id="out-${c.id}">${values[c.id]}</output> ${t[1]}</span></label>
+      <input type="range" id="in-${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${values[c.id]}">`;
+    d.querySelector('input').addEventListener('input', e => {
+      values[c.id] = Number(e.target.value);
+      d.querySelector('output').textContent = values[c.id];
+      update();
+    });
+    box.appendChild(d);
+  });
+}
+
+function buildTable(){
+  const t = TEXT[lang];
+  document.getElementById('factors').innerHTML =
+    `<tr><th>${t.colFactor}</th><th>${t.colCoef}</th><th>${t.colUnit}</th></tr>` +
+    CATEGORIES.map(c => `<tr><td>${t[c.id][0]}</td><td>${c.factor}</td><td>${t[c.id][2]}</td></tr>`).join('');
+}
+
+function update(){
+  const t = TEXT[lang];
+  const { parts, tonnes } = calculate();
+  document.getElementById('total').textContent = tonnes.toFixed(2);
+  document.getElementById('fill').style.width = Math.min(tonnes / SCALE_MAX, 1) * 100 + '%';
+  document.getElementById('tickTarget').style.left = (TARGET / SCALE_MAX * 100) + '%';
+  document.getElementById('tickWorld').style.left  = (WORLD_AVG / SCALE_MAX * 100) + '%';
+  document.getElementById('verdict').textContent =
+    tonnes <= TARGET * 1.15 ? t.verdictLow : tonnes <= WORLD_AVG ? t.verdictMid : t.verdictHigh;
+
+  // Natija dunyo o'rtachasidan yuqori bo'lsa: qiz jahli chiqadi, aks holda kuladi
+  const bad = tonnes > WORLD_AVG;
+  document.getElementById('girl').classList.toggle('bad', bad);
+  document.getElementById('bubble').textContent = bad ? t.sayBad : t.sayGood;
+
+  const max = Math.max(...parts.map(p => p.kg), 1);
+  document.getElementById('breakdown').innerHTML = parts.map(p =>
+    `<div class="row"><span>${t[p.id][0]}</span><div class="bar"><i style="width:${p.kg / max * 100}%"></i></div><b>${Math.round(p.kg)} kg</b></div>`
+  ).join('');
+}
+
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i]').forEach(el => el.textContent = TEXT[lang][el.dataset.i]);
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
+  buildFields(); buildTable(); update();
+}
+
+document.querySelectorAll('[data-lang]').forEach(b =>
+  b.addEventListener('click', () => { lang = b.dataset.lang; applyLang(); }));
+
+applyLang();
+</script>
+</body>
+</html>
